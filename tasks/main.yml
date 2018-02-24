@@ -1,0 +1,70 @@
+- name: Configure RPM key for virtualbox repo
+  rpm_key:
+    state: present
+    key: https://www.virtualbox.org/download/oracle_vbox.asc
+
+- name: Add repository
+  yum_repository:
+    name: virtualbox
+    description: "Virtualbox / Vagrant repo"
+    baseurl: http://download.virtualbox.org/virtualbox/rpm/el/$releasever/$basearch
+    gpgcheck: no
+
+- name: update yum cache
+  yum: update_cache=yes name=*
+  ignore_errors: true
+  retries: 5
+  delay: 1
+  
+- name: install dependencies & Virtualbox 5.1
+  package:
+    name: "{{item}}"
+    state: present
+  with_items:
+  - gcc
+  #- dkms
+  - make
+  - qt 
+  - libgomp 
+  - patch
+  - kernel-headers 
+  - kernel-devel 
+  - binutils 
+  - glibc-headers 
+  - glibc-devel
+  - VirtualBox-5.1
+
+- name:	Create virtualbox kernel modules
+  shell: /usr/sbin/lsmod |grep -q vboxdrv || /sbin/rcvboxdrv setup
+  
+- name: install vagrant from hashicorp repo
+  yum:
+    name: https://releases.hashicorp.com/vagrant/1.9.1/vagrant_1.9.1_x86_64.rpm
+    state: present
+
+- name: Create directory for storing vms
+  file: 
+    dest: "{{item}}"
+    state: directory
+    recurse: yes
+  with_items:
+    - /var/vagrant/.vagrant.d
+    - /var/vagrant/.vagrant
+
+- name: Create directory for storing vms
+  file: 
+    src: /var/vagrant/.vagrant.d
+    dest: /root/.vagrant.d
+    state: link
+
+- blockinfile:
+    create: true
+    dest: /root/.bash_profile
+    block: |
+      #export VAGRANT_HOME=/var/vagrant/.vagrant.d/
+      #export VAGRANT_DOTFILE_PATH=/var/vagrant/.vagrant
+      #export VAGRANT_BOX_UPDATE_CHECK_DISABLE=true
+      VBoxManage setproperty machinefolder /var/vagrant/virtualbox
+
+
+#- include: install-vms.yml

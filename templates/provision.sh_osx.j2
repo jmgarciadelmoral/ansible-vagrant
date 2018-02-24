@@ -1,0 +1,7 @@
+cat /tmp/authorized_keys >> /Users/vagrant/.ssh/authorized_keys
+mkdir /tmp/tom
+cd /tmp/tom
+curl http://swcdn.apple.com/content/downloads/54/42/091-8694/kryl69n00k3i6gxc0n22cqous9xsxbiw35/MultiLingualVoice_en_US_tom.pkg -o /tmp/tom/tom.pkg
+xar -xf tom.pkg
+tar xvf Payload
+mv System/Library/Speech/Voices/Tom* /System/Library/Speech/Voices/

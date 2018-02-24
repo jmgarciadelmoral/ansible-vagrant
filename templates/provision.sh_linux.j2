@@ -1,0 +1,19 @@
+#!/bin/bash
+
+yum -y install net-tools
+  
+mv /tmp/route-eth1 /etc/sysconfig/network-scripts
+mv /tmp/ifcfg-eth1 /etc/sysconfig/network-scripts
+echo GATEWAY={{gateway_ip}} > /etc/sysconfig/network
+echo NOZEROCONF=yes >> /etc/sysconfig/network
+cat /tmp/authorized_keys >> /home/vagrant/.ssh/authorized_keys
+systemctl stop NetworkManager && chkconfig NetworkManager off
+chkconfig network on
+sleep 2 && ifup eth1
+  
+parted -s -a optimal /dev/sdb mklabel msdos
+parted -s -a optimal /dev/sdb mkpart primary 0% 100%
+mkfs.ext4 /dev/sdb1
+echo "/dev/sdb1              /opt             ext4      defaults,noatime      0      1" >> /etc/fstab
+mount -a
+

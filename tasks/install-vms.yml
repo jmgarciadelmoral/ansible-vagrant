@@ -1,0 +1,74 @@
+- include_vars: roles/users/vars/main.yml
+      
+- name: SETTING VIRTUALBOX HOME
+  command: VBoxManage setproperty machinefolder /var/vagrant/virtualbox
+
+- name: Create sub-directory for storing each vm
+  file: 
+    dest: "/var/vagrant/{{hostvars[item].inventory_hostname}}"
+    state: directory
+  with_items: "{{groups[vm_role|default('vm')]}}"
+  when: hostvars[item].host in inventory_hostname
+  
+- name: building authorized_keys 
+  blockinfile:
+    create: true
+    dest: /var/vagrant/authorized_keys
+    block: |
+      {{ lookup('file', 'roles/users/files/ssh_keys/' + item.name + '.pub') }}
+    marker: "# ANSIBLE MANAGED BLOCK {{ item.name }}"
+  with_items: "{{users}}"
+
+
+- name: Configure vm templates
+  template:
+    src: "vm_{{hostvars[item].os}}.j2"
+    dest: "/var/vagrant/{{hostvars[item].inventory_hostname}}/Vagrantfile"
+  with_items: "{{groups[vm_role|default('vm')]}}"
+  when: hostvars[item].host in inventory_hostname
+
+- name: prepare vm network configuration 
+  template:
+    src: vm-ifcfg.j2
+    dest: "/var/vagrant/{{hostvars[item].inventory_hostname}}/ifcfg-eth1"
+    mode: 0644
+  with_items: "{{groups[vm_role|default('vm')]}}"
+  when: hostvars[item].host in inventory_hostname and hostvars[item].os  == "linux"
+
+- name: prepare vm network configuration (route)
+  template:
+    src: vm-route.j2
+    dest: "/var/vagrant/{{hostvars[item].inventory_hostname}}/route-eth1"
+    mode: 0644
+  with_items: "{{groups[vm_role|default('vm')]}}"
+  when: hostvars[item].host in inventory_hostname and hostvars[item].os == "linux"
+
+- name: prepare provision script
+  template:
+    src: "provision.sh_{{hostvars[item].os}}.j2"
+    dest: "/var/vagrant/{{hostvars[item].inventory_hostname}}/provision.sh"
+    mode: 0755
+  with_items: "{{groups[vm_role|default('vm')]}}"
+  when: hostvars[item].host in inventory_hostname
+
+- name: destroy instances (rebuild=true)
+  shell: |
+    VBoxManage setproperty machinefolder /var/vagrant/virtualbox
+    cd /var/vagrant/{{hostvars[item].inventory_hostname}} 
+    vagrant destroy -f
+    rm -rf /var/vagrant/virtualbox/{{hostvars[item].inventory_hostname}}
+  with_items: "{{groups[vm_role|default('vm')]}}"
+  when: hostvars[item].host in inventory_hostname and hostvars[item].rebuild is defined 
+  ignore_errors: true
+
+- name: spin up instances
+  shell: VBoxManage setproperty machinefolder /var/vagrant/virtualbox && cd /var/vagrant/{{hostvars[item].inventory_hostname}} && (vagrant global-status|grep {{hostvars[item].inventory_hostname}}) || vagrant up 
+  with_items: "{{groups[vm_role|default('vm')]}}"
+  when: hostvars[item].host in inventory_hostname
+  retries: 2
+  delay: 1
+  ignore_errors: true
+  async: 6000
+  poll: 30
+ 
+

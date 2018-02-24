@@ -1,0 +1,12 @@
+DEVICE=eth1
+BOOTPROTO=none
+ONBOOT=yes
+NM_CONTROLLED=no
+USERCTL=no
+IPV6INIT=no
+PEERDNS=yes
+TYPE=Ethernet
+NETMASK=255.255.255.255
+IPADDR={{hostvars[item].ansible_host}}
+GATEWAY={{gateway_ip}}
+ARP=yes
